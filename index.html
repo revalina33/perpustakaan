@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hitung Rekap Data Pengunjung</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f9ff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 92, 184, 0.1);
+            padding: 30px;
+            width: 90%;
+            max-width: 1200px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #005cb8;
+            margin-bottom: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #005cb8;
+            border-radius: 8px;
+            padding: 40px 20px;
+            margin: 20px 0;
+            background-color: #f0f7ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            background-color: #e0f0ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #005cb8;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background-color: #005cb8;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: #004a9b;
+        }
+
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .or-text {
+            margin: 15px 0;
+            color: #666;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            text-align: left;
+            display: none;
+            overflow-x: auto;
+        }
+
+        #loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e8f4ff;
+            border-radius: 5px;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .daily-table {
+            margin-top: 30px;
+        }
+        .daily-table th {
+            white-space: nowrap;
+        }
+        .summary-table {
+            margin-bottom: 30px;
+        }
+        
+        .unknown-names {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border-radius: 5px;
+        }
+        .unknown-names ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hitung Rekap Data Pengunjung</h1>
+        <p>Upload File Excel</p>
+        
+        <form id="uploadForm">
+            <input type="file" id="file-upload" class="file-input" accept=".xlsx,.xls,.csv" required>
+            
+            <label for="file-upload">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📊</div>
+                    <h3>Pilih file Excel</h3>
+                </div>
+            </label>
+            
+            <div id="fileInfo" class="file-info">
+                <strong>File terpilih:</strong> <span id="fileName"></span>
+            </div>
+            
+            <button type="submit" class="btn" id="submitBtn">Submit</button>
+        </form>
+
+        <div id="loading">
+            <p>Memproses data, harap tunggu...</p>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('file-upload');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+        const fileInfoDiv = document.getElementById('fileInfo');
+        const fileNameSpan = document.getElementById('fileName');
+
+        // Drag & Drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#d0e7ff';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.backgroundColor = '#f0f7ff';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#f0f7ff';
+
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileInfo(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Pilih file manual
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                updateFileInfo(e.target.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            fileNameSpan.textContent = file.name;
+            fileInfoDiv.style.display = 'block';
+            submitBtn.disabled = false;
+        }
+
+        // Submit form
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!fileInput.files.length) {
+                alert('Silakan pilih file terlebih dahulu');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Gagal: ${response.status} - ${text.slice(0, 80)}`);
+                }
+
+                const data = await response.json();
+                loadingDiv.style.display = 'none';
+
+                if (data.success) {
+                    resultDiv.style.display = 'block';
+                    
+                    // Summary Table
+                    let resultHTML = `
+                        <h3>Hasil Rekap Pengunjung</h3>
+                        <p><strong>Total Pengunjung:</strong> ${data.result.total}</p>
+                        <p><strong>Laki-laki:</strong> ${data.result.male}</p>
+                        <p><strong>Perempuan:</strong> ${data.result.female}</p>
+                        <p><strong>Jenis Kelamin Tidak Diketahui:</strong> ${data.result.unknown_gender}</p>
+                        
+                        <h4>Rekap Kategori</h4>
+                        <table class="summary-table">
+                            <tr>
+                                <th>Kategori</th>
+                                <th>Laki-laki</th>
+                                <th>Perempuan</th>
+                                <th>Tidak Diketahui</th>
+                                <th>Total</th>
+                            </tr>`;
+                    
+                    data.result.details.forEach(item => {
+                        resultHTML += `
+                            <tr>
+                                <td>${item.category}</td>
+                                <td>${item.male}</td>
+                                <td>${item.female}</td>
+                                <td>${item.unknown}</td>
+                                <td>${item.total}</td>
+                            </tr>`;
+                    });
+                    
+                    resultHTML += `</table>`;
+                    
+                    // Show unknown gender names if available
+                    if (data.result.unknown_gender_names && data.result.unknown_gender_names.length > 0) {
+                        resultHTML += `
+                            <div class="unknown-names">
+                                <h4>Nama dengan Jenis Kelamin Tidak Diketahui</h4>
+                                <p>Berikut nama-nama yang dipindahkan ke kategori "Data Tidak Lengkap":</p>
+                                <ul>`;
+                        
+                        data.result.unknown_gender_names.forEach(name => {
+                            resultHTML += `<li>${name}</li>`;
+                        });
+                        
+                        resultHTML += `</ul></div>`;
+                    }
+                    
+                    // Daily Table
+                    if (data.result.daily_data) {
+                        resultHTML += `
+                            <h4 class="daily-table">Rekap Harian</h4>
+                            <div style="overflow-x: auto;">
+                                <table class="daily-table">
+                                    <tr>
+                                        <th>Tanggal</th>`;
+                        
+                        // Add category headers (L/P for each category)
+                        const categories = data.result.details.map(item => item.category);
+                        categories.forEach(cat => {
+                            resultHTML += `<th>${cat} (L)</th><th>${cat} (P)</th>`;
+                        });
+                        
+                        resultHTML += `<th>Total</th></tr>`;
+                        
+                        // Add daily data rows
+                        data.result.daily_data.forEach(day => {
+                            let dayTotal = 0;
+                            resultHTML += `<tr><td>${day.TANGGAL}</td>`;
+                            
+                            categories.forEach(cat => {
+                                const male = day[`${cat}_L`] || 0;
+                                const female = day[`${cat}_P`] || 0;
+                                dayTotal += male + female;
+                                resultHTML += `<td>${male}</td><td>${female}</td>`;
+                            });
+                            
+                            resultHTML += `<td>${dayTotal}</td></tr>`;
+                        });
+                        
+                        resultHTML += `</table></div>`;
+                    }
+                    
+                    // Download button
+                    resultHTML += `
+                        <p><a href="/download/${data.result.filename}" class="btn" style="display: inline-block; margin-top: 20px;">Download File Rekap</a></p>`;
+                    
+                    resultDiv.innerHTML = resultHTML;
+                } else {
+                    alert('Gagal: ' + (data.error || 'Terjadi kesalahan saat memproses file.'));
+                }
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                alert('Terjadi kesalahan: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
